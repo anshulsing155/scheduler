@@ -111,6 +111,8 @@ model EventType {
   @@unique([userId, slug])
   @@index([userId])
   @@index([teamId])
+  @@index([userId, isActive])
+  @@index([slug])
 }
 
 enum LocationType {
@@ -138,6 +140,7 @@ model Availability {
   endTime           String              // HH:mm format
   
   @@index([userId])
+  @@index([userId, dayOfWeek])
 }
 
 model DateOverride {
@@ -199,6 +202,10 @@ model Booking {
   @@index([eventTypeId])
   @@index([startTime])
   @@index([status])
+  @@index([userId, startTime])
+  @@index([userId, status])
+  @@index([guestEmail])
+  @@index([endTime])
 }
 
 enum BookingStatus {
@@ -295,6 +302,8 @@ model Payment {
   
   @@index([userId])
   @@index([status])
+  @@index([userId, status])
+  @@index([createdAt])
 }
 
 enum PaymentStatus {

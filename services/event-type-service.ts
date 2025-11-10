@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { LocationType, SchedulingType } from '@prisma/client'
+import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
+import { cacheInvalidation } from '@/lib/cache-invalidation'
 
 /**
  * Validation Schemas
@@ -431,6 +433,9 @@ export const serverEventTypeService = {
         },
       })
 
+      // Invalidate user event types cache
+      await cacheInvalidation.invalidateUserEventTypes(userId)
+
       return eventType
     } catch (error) {
       console.error('Error creating event type:', error)
@@ -443,10 +448,36 @@ export const serverEventTypeService = {
    */
   async getEventTypes(userId: string, includeInactive = false): Promise<EventTypeWithRelations[]> {
     try {
+      // Only cache active event types
+      if (!includeInactive) {
+        return await cache.getOrSet(
+          CacheKeys.userEventTypes(userId),
+          async () => {
+            const eventTypes = await prisma.eventType.findMany({
+              where: {
+                userId,
+                isActive: true,
+              },
+              include: {
+                _count: {
+                  select: { bookings: true },
+                },
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            })
+
+            return eventTypes
+          },
+          CacheTTL.MEDIUM
+        )
+      }
+
+      // Don't cache when including inactive
       const eventTypes = await prisma.eventType.findMany({
         where: {
           userId,
-          ...(includeInactive ? {} : { isActive: true }),
         },
         include: {
           _count: {
@@ -470,16 +501,22 @@ export const serverEventTypeService = {
    */
   async getEventType(eventTypeId: string): Promise<EventTypeWithRelations | null> {
     try {
-      const eventType = await prisma.eventType.findUnique({
-        where: { id: eventTypeId },
-        include: {
-          _count: {
-            select: { bookings: true },
-          },
-        },
-      })
+      return await cache.getOrSet(
+        CacheKeys.eventType(eventTypeId),
+        async () => {
+          const eventType = await prisma.eventType.findUnique({
+            where: { id: eventTypeId },
+            include: {
+              _count: {
+                select: { bookings: true },
+              },
+            },
+          })
 
-      return eventType
+          return eventType
+        },
+        CacheTTL.MEDIUM
+      )
     } catch (error) {
       console.error('Error fetching event type:', error)
       return null
@@ -491,33 +528,39 @@ export const serverEventTypeService = {
    */
   async getPublicEventType(username: string, slug: string): Promise<EventTypeWithRelations | null> {
     try {
-      const eventType = await prisma.eventType.findFirst({
-        where: {
-          slug,
-          isActive: true,
-          user: {
-            username,
-          },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              username: true,
-              name: true,
-              avatarUrl: true,
-              timezone: true,
-              brandColor: true,
-              logoUrl: true,
+      return await cache.getOrSet(
+        CacheKeys.publicEventType(username, slug),
+        async () => {
+          const eventType = await prisma.eventType.findFirst({
+            where: {
+              slug,
+              isActive: true,
+              user: {
+                username,
+              },
             },
-          },
-          _count: {
-            select: { bookings: true },
-          },
-        },
-      })
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  avatarUrl: true,
+                  timezone: true,
+                  brandColor: true,
+                  logoUrl: true,
+                },
+              },
+              _count: {
+                select: { bookings: true },
+              },
+            },
+          })
 
-      return eventType
+          return eventType
+        },
+        CacheTTL.MEDIUM
+      )
     } catch (error) {
       console.error('Error fetching public event type:', error)
       return null
@@ -532,6 +575,16 @@ export const serverEventTypeService = {
       // Validate data
       const validatedData = updateEventTypeSchema.parse(data)
 
+      // Get existing event type to get user info
+      const existing = await prisma.eventType.findUnique({
+        where: { id: eventTypeId },
+        select: { userId: true, slug: true, user: { select: { username: true } } },
+      })
+
+      if (!existing) {
+        return null
+      }
+
       const eventType = await prisma.eventType.update({
         where: { id: eventTypeId },
         data: validatedData,
@@ -541,6 +594,14 @@ export const serverEventTypeService = {
           },
         },
       })
+
+      // Invalidate event type cache
+      await cacheInvalidation.invalidateEventType(
+        eventTypeId,
+        existing.userId,
+        existing.user.username,
+        existing.slug
+      )
 
       return eventType
     } catch (error) {
@@ -554,9 +615,27 @@ export const serverEventTypeService = {
    */
   async deleteEventType(eventTypeId: string): Promise<boolean> {
     try {
+      // Get event type info before deleting
+      const eventType = await prisma.eventType.findUnique({
+        where: { id: eventTypeId },
+        select: { userId: true, slug: true, user: { select: { username: true } } },
+      })
+
+      if (!eventType) {
+        return false
+      }
+
       await prisma.eventType.delete({
         where: { id: eventTypeId },
       })
+
+      // Invalidate event type cache
+      await cacheInvalidation.invalidateEventType(
+        eventTypeId,
+        eventType.userId,
+        eventType.user.username,
+        eventType.slug
+      )
 
       return true
     } catch (error) {

@@ -632,6 +632,15 @@ export const serverBookingService = {
    */
   async cancelBooking(bookingId: string, reason?: string): Promise<boolean> {
     try {
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: { userId: true },
+      })
+
+      if (!booking) {
+        return false
+      }
+
       await prisma.booking.update({
         where: { id: bookingId },
         data: {
@@ -644,6 +653,9 @@ export const serverBookingService = {
       notificationService.cancelReminders(bookingId).catch((error) => {
         console.error('Failed to cancel reminders:', error)
       })
+
+      // Invalidate booking and availability cache
+      await cacheInvalidation.invalidateBooking(bookingId, booking.userId)
 
       return true
     } catch (error) {
