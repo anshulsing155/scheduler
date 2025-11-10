@@ -1,0 +1,325 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User and Authentication
+model User {
+  id                String              @id @default(cuid())
+  email             String              @unique
+  username          String              @unique
+  name              String?
+  bio               String?
+  avatarUrl         String?
+  timezone          String              @default("UTC")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Branding
+  brandColor        String?
+  logoUrl           String?
+  customDomain      String?             @unique
+  
+  // Settings
+  weekStart         Int                 @default(0) // 0 = Sunday
+  timeFormat        String              @default("12h")
+  dateFormat        String              @default("MM/DD/YYYY")
+  
+  // Relations
+  eventTypes        EventType[]
+  bookings          Booking[]
+  availability      Availability[]
+  dateOverrides     DateOverride[]
+  connectedCalendars ConnectedCalendar[]
+  teamMemberships   TeamMember[]
+  notifications     NotificationSetting[]
+  payments          Payment[]
+  
+  @@index([username])
+  @@index([email])
+}
+
+// Event Types
+model EventType {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId            String?
+  team              Team?               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  title             String
+  slug              String
+  description       String?
+  duration          Int                 // minutes
+  isActive          Boolean             @default(true)
+  
+  // Location
+  locationType      LocationType        @default(VIDEO_ZOOM)
+  locationDetails   String?             // Video link, address, phone
+  
+  // Booking Settings
+  minimumNotice     Int                 @default(0) // minutes
+  bufferTimeBefore  Int                 @default(0) // minutes
+  bufferTimeAfter   Int                 @default(0) // minutes
+  maxBookingWindow  Int                 @default(60) // days
+  
+  // Payment
+  price             Decimal?            @db.Decimal(10, 2)
+  currency          String?             @default("USD")
+  
+  // Customization
+  color             String?
+  customQuestions   Json?               // Array of question objects
+  
+  // Team Settings
+  schedulingType    SchedulingType?     @default(COLLECTIVE)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  bookings          Booking[]
+  
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([teamId])
+}
+
+enum LocationType {
+  VIDEO_ZOOM
+  VIDEO_GOOGLE_MEET
+  VIDEO_TEAMS
+  PHONE
+  IN_PERSON
+  CUSTOM
+}
+
+enum SchedulingType {
+  COLLECTIVE    // All team members must be available
+  ROUND_ROBIN   // Distribute among available members
+}
+
+// Availability
+model Availability {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  dayOfWeek         Int                 // 0-6 (Sunday-Saturday)
+  startTime         String              // HH:mm format
+  endTime           String              // HH:mm format
+  
+  @@index([userId])
+}
+
+model DateOverride {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  date              DateTime            @db.Date
+  isAvailable       Boolean             @default(false)
+  startTime         String?             // HH:mm format
+  endTime           String?             // HH:mm format
+  
+  @@index([userId, date])
+}
+
+// Bookings
+model Booking {
+  id                String              @id @default(cuid())
+  eventTypeId       String
+  eventType         EventType           @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+  userId            String              // Host
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Guest Information
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  guestTimezone     String
+  customResponses   Json?               // Responses to custom questions
+  
+  // Booking Details
+  startTime         DateTime
+  endTime           DateTime
+  status            BookingStatus       @default(PENDING)
+  cancellationReason String?
+  
+  // Meeting Details
+  meetingLink       String?
+  meetingPassword   String?
+  location          String?
+  
+  // Unique Links
+  rescheduleToken   String              @unique @default(cuid())
+  cancelToken       String              @unique @default(cuid())
+  
+  // Payment
+  paymentId         String?             @unique
+  payment           Payment?            @relation(fields: [paymentId], references: [id])
+  
+  // Metadata
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  reminders         Reminder[]
+  
+  @@index([userId])
+  @@index([eventTypeId])
+  @@index([startTime])
+  @@index([status])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+// Calendar Integration
+model ConnectedCalendar {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  provider          CalendarProvider
+  providerAccountId String
+  accessToken       String              @db.Text
+  refreshToken      String?             @db.Text
+  expiresAt         DateTime?
+  
+  calendarId        String
+  calendarName      String
+  isPrimary         Boolean             @default(false)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([userId, provider, calendarId])
+  @@index([userId])
+}
+
+enum CalendarProvider {
+  GOOGLE
+  OUTLOOK
+}
+
+// Teams
+model Team {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  logoUrl           String?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  members           TeamMember[]
+  eventTypes        EventType[]
+}
+
+model TeamMember {
+  id                String              @id @default(cuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  role              TeamRole            @default(MEMBER)
+  isAccepted        Boolean             @default(false)
+  
+  createdAt         DateTime            @default(now())
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// Payments
+model Payment {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount            Decimal             @db.Decimal(10, 2)
+  currency          String
+  status            PaymentStatus       @default(PENDING)
+  
+  stripePaymentIntentId String?         @unique
+  stripeRefundId    String?
+  
+  booking           Booking?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// Notifications
+model NotificationSetting {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  emailEnabled      Boolean             @default(true)
+  smsEnabled        Boolean             @default(false)
+  phoneNumber       String?
+  
+  reminderTiming    Json                // Array of minutes before meeting
+  
+  @@unique([userId])
+}
+
+model Reminder {
+  id                String              @id @default(cuid())
+  bookingId         String
+  booking           Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  type              ReminderType
+  scheduledFor      DateTime
+  sentAt            DateTime?
+  status            ReminderStatus      @default(PENDING)
+  
+  @@index([bookingId])
+  @@index([scheduledFor, status])
+}
+
+enum ReminderType {
+  EMAIL
+  SMS
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+}
