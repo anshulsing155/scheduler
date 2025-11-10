@@ -4,6 +4,7 @@ import { BookingStatus } from '@prisma/client'
 import { addMinutes } from 'date-fns'
 import { videoService, VideoService } from './video-service'
 import { notificationService } from './notification-service'
+import { cacheInvalidation } from '@/lib/cache-invalidation'
 
 /**
  * Validation Schemas
@@ -469,6 +470,9 @@ export const serverBookingService = {
         console.error('Failed to schedule reminders:', error)
       })
 
+      // Invalidate booking and availability cache
+      await cacheInvalidation.invalidateBooking(booking.id, eventType.userId)
+
       return booking as any
     } catch (error) {
       console.error('Error creating booking:', error)
@@ -612,6 +616,9 @@ export const serverBookingService = {
       notificationService.rescheduleReminders(bookingId).catch((error) => {
         console.error('Failed to reschedule reminders:', error)
       })
+
+      // Invalidate booking and availability cache
+      await cacheInvalidation.invalidateBooking(bookingId, existingBooking.userId)
 
       return booking as any
     } catch (error) {

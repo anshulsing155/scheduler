@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { serverAuthService } from '@/services/auth-service'
-import { serverUserService } from '@/services/user-service'
+import { serverUserService } from '@/services/user-service.server'
 
 export async function GET() {
   try {

@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { addMinutes, format, parse, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+import { cache, CacheKeys, CacheTTL } from '@/lib/cache'
+import { cacheInvalidation } from '@/lib/cache-invalidation'
 
 /**
  * Validation Schemas
@@ -325,16 +327,23 @@ export const serverAvailabilityService = {
    */
   async getWeeklySchedule(userId: string): Promise<WeeklySchedule[]> {
     try {
-      const availability = await prisma.availability.findMany({
-        where: { userId },
-        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-      })
+      // Try to get from cache first
+      return await cache.getOrSet(
+        CacheKeys.userWeeklySchedule(userId),
+        async () => {
+          const availability = await prisma.availability.findMany({
+            where: { userId },
+            orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+          })
 
-      return availability.map((a) => ({
-        dayOfWeek: a.dayOfWeek,
-        startTime: a.startTime,
-        endTime: a.endTime,
-      }))
+          return availability.map((a) => ({
+            dayOfWeek: a.dayOfWeek,
+            startTime: a.startTime,
+            endTime: a.endTime,
+          }))
+        },
+        CacheTTL.MEDIUM
+      )
     } catch (error) {
       console.error('Error fetching weekly schedule:', error)
       return []
@@ -364,6 +373,9 @@ export const serverAvailabilityService = {
         })),
       })
 
+      // Invalidate availability cache
+      await cacheInvalidation.invalidateAvailability(userId)
+
       return schedule
     } catch (error) {
       console.error('Error setting weekly schedule:', error)
@@ -376,20 +388,32 @@ export const serverAvailabilityService = {
    */
   async getDateOverrides(userId: string, startDate?: Date, endDate?: Date): Promise<any[]> {
     try {
-      const where: any = { userId }
+      const cacheKey = CacheKeys.userDateOverrides(
+        userId,
+        startDate?.toISOString() || 'all',
+        endDate?.toISOString() || 'all'
+      )
 
-      if (startDate || endDate) {
-        where.date = {}
-        if (startDate) where.date.gte = startDate
-        if (endDate) where.date.lte = endDate
-      }
+      return await cache.getOrSet(
+        cacheKey,
+        async () => {
+          const where: any = { userId }
 
-      const overrides = await prisma.dateOverride.findMany({
-        where,
-        orderBy: { date: 'asc' },
-      })
+          if (startDate || endDate) {
+            where.date = {}
+            if (startDate) where.date.gte = startDate
+            if (endDate) where.date.lte = endDate
+          }
 
-      return overrides
+          const overrides = await prisma.dateOverride.findMany({
+            where,
+            orderBy: { date: 'asc' },
+          })
+
+          return overrides
+        },
+        CacheTTL.MEDIUM
+      )
     } catch (error) {
       console.error('Error fetching date overrides:', error)
       return []
@@ -436,6 +460,9 @@ export const serverAvailabilityService = {
         })
       }
 
+      // Invalidate availability cache
+      await cacheInvalidation.invalidateAvailability(userId)
+
       return result
     } catch (error) {
       console.error('Error setting date override:', error)
@@ -461,6 +488,9 @@ export const serverAvailabilityService = {
         })
       }
 
+      // Invalidate availability cache
+      await cacheInvalidation.invalidateAvailability(userId)
+
       return true
     } catch (error) {
       console.error('Error deleting date override:', error)
@@ -472,6 +502,34 @@ export const serverAvailabilityService = {
    * Get available time slots for a specific date
    */
   async getAvailableSlots(
+    userId: string,
+    date: Date,
+    duration: number,
+    timezone: string,
+    eventTypeId?: string
+  ): Promise<TimeSlot[]> {
+    try {
+      // Create cache key
+      const cacheKey = CacheKeys.userAvailability(
+        userId,
+        `${date.toISOString()}-${duration}-${timezone}-${eventTypeId || 'none'}`
+      )
+
+      return await cache.getOrSet(
+        cacheKey,
+        async () => this.calculateAvailableSlots(userId, date, duration, timezone, eventTypeId),
+        CacheTTL.SHORT // Short TTL since availability can change frequently
+      )
+    } catch (error) {
+      console.error('Error getting available slots:', error)
+      return []
+    }
+  },
+
+  /**
+   * Calculate available time slots (extracted for caching)
+   */
+  async calculateAvailableSlots(
     userId: string,
     date: Date,
     duration: number,

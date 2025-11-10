@@ -28,10 +28,29 @@ model User {
   logoUrl           String?
   customDomain      String?             @unique
   
+  // Booking Page Customization
+  bookingLayout     String?             @default("default") // default, centered, split
+  customCSS         String?             @db.Text
+  
+  // White-label Options
+  isPremium         Boolean             @default(false)
+  hidePlatformBranding Boolean          @default(false)
+  customFooter      String?             @db.Text
+  customHeader      String?             @db.Text
+  emailBrandingEnabled Boolean          @default(false)
+  metaTitle         String?
+  metaDescription   String?
+  metaImage         String?
+  
   // Settings
   weekStart         Int                 @default(0) // 0 = Sunday
   timeFormat        String              @default("12h")
   dateFormat        String              @default("MM/DD/YYYY")
+  
+  // Two-Factor Authentication
+  twoFactorEnabled  Boolean             @default(false)
+  twoFactorSecret   String?             // Encrypted TOTP secret
+  backupCodes       Json?               // Array of hashed backup codes
   
   // Relations
   eventTypes        EventType[]
@@ -42,6 +61,7 @@ model User {
   teamMemberships   TeamMember[]
   notifications     NotificationSetting[]
   payments          Payment[]
+  auditLogs         AuditLog[]
   
   @@index([username])
   @@index([email])
@@ -323,4 +343,66 @@ enum ReminderStatus {
   PENDING
   SENT
   FAILED
+}
+
+// Audit Logging
+model AuditLog {
+  id                String              @id @default(cuid())
+  userId            String?
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action            AuditAction
+  resource          String              // e.g., "booking", "user", "event_type"
+  resourceId        String?             // ID of the affected resource
+  
+  ipAddress         String?
+  userAgent         String?             @db.Text
+  
+  metadata          Json?               // Additional context
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  // Authentication
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_RESET
+  PASSWORD_CHANGED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+  
+  // User Management
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  
+  // Bookings
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_CANCELLED
+  BOOKING_RESCHEDULED
+  
+  // Event Types
+  EVENT_TYPE_CREATED
+  EVENT_TYPE_UPDATED
+  EVENT_TYPE_DELETED
+  
+  // Payments
+  PAYMENT_PROCESSED
+  PAYMENT_REFUNDED
+  
+  // Security
+  SECURITY_ALERT
+  SUSPICIOUS_ACTIVITY
+  
+  // Privacy
+  DATA_EXPORTED
+  ACCOUNT_DELETION_REQUESTED
 }
