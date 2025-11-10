@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { BookingStatus } from '@prisma/client'
 import { addMinutes } from 'date-fns'
+import { videoService, VideoService } from './video-service'
+import { notificationService } from './notification-service'
 
 /**
  * Validation Schemas
@@ -19,7 +21,7 @@ export const createBookingSchema = z.object({
   endTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid end time',
   }),
-  customResponses: z.record(z.any()).nullable().optional(),
+  customResponses: z.record(z.string(), z.any()).nullable().optional(),
   notes: z.string().max(500, 'Notes are too long').optional(),
 })
 
@@ -394,6 +396,41 @@ export const serverBookingService = {
         throw new Error('This time slot conflicts with buffer time requirements')
       }
 
+      // Generate video meeting link if needed
+      let meetingLink: string | null = null
+      let meetingPassword: string | null = null
+      let location: string | null = null
+
+      if (VideoService.isVideoLocationType(eventType.locationType)) {
+        try {
+          const videoMeeting = await videoService.createMeetingForBooking(
+            eventType.locationType,
+            {
+              title: eventType.title,
+              startTime,
+              endTime,
+              hostEmail: eventType.user.email,
+              hostName: eventType.user.name || 'Host',
+              guestEmail: validatedData.guestEmail,
+              guestName: validatedData.guestName,
+              description: eventType.description || undefined,
+            }
+          )
+
+          if (videoMeeting) {
+            meetingLink = videoMeeting.meetingLink
+            meetingPassword = videoMeeting.meetingPassword || null
+            location = videoMeeting.provider
+          }
+        } catch (error) {
+          console.error('Error creating video meeting:', error)
+          // Continue with booking creation even if video meeting fails
+        }
+      } else if (eventType.locationDetails) {
+        // Use custom location details for non-video meetings
+        location = eventType.locationDetails
+      }
+
       // Create the booking
       const booking = await prisma.booking.create({
         data: {
@@ -407,6 +444,9 @@ export const serverBookingService = {
           endTime,
           customResponses: validatedData.customResponses as any,
           status: 'CONFIRMED',
+          meetingLink,
+          meetingPassword,
+          location,
         },
         include: {
           eventType: {
@@ -422,6 +462,11 @@ export const serverBookingService = {
             },
           },
         },
+      })
+
+      // Schedule reminders for the booking (don't block on this)
+      notificationService.scheduleReminders(booking.id).catch((error) => {
+        console.error('Failed to schedule reminders:', error)
       })
 
       return booking as any
@@ -563,6 +608,11 @@ export const serverBookingService = {
         },
       })
 
+      // Reschedule reminders (don't block on this)
+      notificationService.rescheduleReminders(bookingId).catch((error) => {
+        console.error('Failed to reschedule reminders:', error)
+      })
+
       return booking as any
     } catch (error) {
       console.error('Error rescheduling booking:', error)
@@ -581,6 +631,11 @@ export const serverBookingService = {
           status: 'CANCELLED',
           cancellationReason: reason || null,
         },
+      })
+
+      // Cancel pending reminders (don't block on this)
+      notificationService.cancelReminders(bookingId).catch((error) => {
+        console.error('Failed to cancel reminders:', error)
       })
 
       return true

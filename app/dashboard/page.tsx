@@ -39,7 +39,9 @@ export default async function DashboardPage() {
             <p className="text-gray-600 mb-4">
               View and manage your scheduled meetings
             </p>
-            <Button disabled>Coming Soon</Button>
+            <Link href="/dashboard/bookings">
+              <Button>View Bookings</Button>
+            </Link>
           </Card>
         </div>
 

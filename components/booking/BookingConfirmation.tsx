@@ -65,6 +65,15 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
     const endDate = format(booking.endTime, "yyyyMMdd'T'HHmmss'Z'")
     const now = format(new Date(), "yyyyMMdd'T'HHmmss'Z'")
 
+    // Build description with video link if available
+    let description = `Meeting with ${booking.eventType.user.name || 'host'}`
+    if (booking.meetingLink) {
+      description += `\\n\\nJoin Meeting: ${booking.meetingLink}`
+      if (booking.meetingPassword) {
+        description += `\\nPassword: ${booking.meetingPassword}`
+      }
+    }
+
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -75,8 +84,8 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
       `DTSTART:${startDate}`,
       `DTEND:${endDate}`,
       `SUMMARY:${booking.eventType.title}`,
-      `DESCRIPTION:Meeting with ${booking.eventType.user.name || 'host'}`,
-      `LOCATION:${getLocationLabel()}`,
+      `DESCRIPTION:${description}`,
+      `LOCATION:${booking.meetingLink || getLocationLabel()}`,
       `ORGANIZER;CN=${booking.eventType.user.name || 'Host'}:mailto:${booking.eventType.user.email}`,
       `ATTENDEE;CN=${booking.guestName}:mailto:${booking.guestEmail}`,
       'STATUS:CONFIRMED',
@@ -150,17 +159,27 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
             {/* Location */}
             <div className="flex items-start gap-3">
               {getLocationIcon()}
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-gray-900">{getLocationLabel()}</p>
                 {booking.meetingLink && (
-                  <a
-                    href={booking.meetingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Join meeting
-                  </a>
+                  <div className="mt-1 space-y-1">
+                    <a
+                      href={booking.meetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline block"
+                    >
+                      Join meeting
+                    </a>
+                    {booking.meetingPassword && (
+                      <p className="text-sm text-gray-600">
+                        Password: <span className="font-mono font-medium">{booking.meetingPassword}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+                {!booking.meetingLink && booking.location && (
+                  <p className="text-sm text-gray-600 mt-1">{booking.location}</p>
                 )}
               </div>
             </div>

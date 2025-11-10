@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { serverBookingService, createBookingSchema } from '@/services/booking-service'
+import { emailService } from '@/services/email-service'
 import { z } from 'zod'
 
 /**
@@ -18,6 +19,11 @@ export async function POST(request: NextRequest) {
     if (!booking) {
       return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 })
     }
+
+    // Send confirmation emails (don't block on this)
+    emailService.sendBookingConfirmation(booking).catch((error) => {
+      console.error('Failed to send booking confirmation:', error)
+    })
 
     return NextResponse.json({ booking }, { status: 201 })
   } catch (error) {

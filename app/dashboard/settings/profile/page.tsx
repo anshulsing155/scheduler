@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { userService, type UserProfile } from '@/services/user-service'
+import { userService, type UserProfile } from '@/services/user-service.client'
 import { AvatarUpload } from '@/components/profile/avatar-upload'
 import { TimezoneSelector } from '@/components/profile/timezone-selector'
 import { BrandingSettings } from '@/components/profile/branding-settings'

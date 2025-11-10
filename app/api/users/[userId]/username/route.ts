@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { serverAuthService } from '@/services/auth-service'
-import { serverUserService, updateUsernameSchema } from '@/services/user-service'
+import { serverUserService, updateUsernameSchema } from '@/services/user-service.server'
 import { z } from 'zod'
 
 export async function PATCH(

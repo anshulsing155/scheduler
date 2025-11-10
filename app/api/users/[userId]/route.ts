@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { serverAuthService } from '@/services/auth-service'
-import { serverUserService, updateProfileSchema } from '@/services/user-service'
+import { serverUserService, updateProfileSchema } from '@/services/user-service.server'
 import { z } from 'zod'
 
 export async function GET(
