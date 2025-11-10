@@ -130,6 +130,7 @@ model DateOverride {
   startTime         String?             // HH:mm format
   endTime           String?             // HH:mm format
   
+  @@unique([userId, date])
   @@index([userId, date])
 }
 

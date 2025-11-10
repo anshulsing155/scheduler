@@ -422,7 +422,7 @@ export const serverEventTypeService = {
           ...validatedData,
           slug: uniqueSlug,
           userId,
-          customQuestions: validatedData.customQuestions || [],
+          customQuestions: (validatedData.customQuestions || []) as any,
         },
         include: {
           _count: {
@@ -600,7 +600,7 @@ export const serverEventTypeService = {
           price: original.price,
           currency: original.currency,
           color: original.color,
-          customQuestions: original.customQuestions,
+          customQuestions: original.customQuestions as any,
           schedulingType: original.schedulingType,
         },
         include: {

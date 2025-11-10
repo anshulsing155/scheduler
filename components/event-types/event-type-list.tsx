@@ -84,7 +84,7 @@ export function EventTypeList({
                   </div>
                   <Switch
                     checked={eventType.isActive}
-                    onCheckedChange={(checked) => onToggleActive?.(eventType, checked)}
+                    onCheckedChange={(checked: boolean) => onToggleActive?.(eventType, checked)}
                   />
                 </div>
               </CardHeader>
@@ -158,7 +158,7 @@ export function EventTypeList({
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={eventType.isActive}
-                    onCheckedChange={(checked) => onToggleActive?.(eventType, checked)}
+                    onCheckedChange={(checked: boolean) => onToggleActive?.(eventType, checked)}
                   />
                   <Button variant="outline" size="sm" onClick={() => onEdit?.(eventType)}>
                     <Pencil className="h-3 w-3" />
