@@ -9,9 +9,20 @@ const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
 
 let twilioClient: ReturnType<typeof twilio> | null = null
 
-// Only initialize if credentials are available
-if (accountSid && authToken) {
-  twilioClient = twilio(accountSid, authToken)
+// Only initialize if credentials are valid (not placeholder values)
+const isValidTwilioConfig = 
+  accountSid && 
+  authToken && 
+  accountSid.startsWith('AC') && 
+  authToken.length > 20 &&
+  !accountSid.includes('your-')
+
+if (isValidTwilioConfig) {
+  try {
+    twilioClient = twilio(accountSid, authToken)
+  } catch (error) {
+    console.warn('Failed to initialize Twilio client:', error)
+  }
 }
 
 /**

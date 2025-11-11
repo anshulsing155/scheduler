@@ -15,13 +15,23 @@ export async function GET() {
     }
 
     // Get user profile from database
-    const user = await serverUserService.getProfile(authUser.id)
+    let user = await serverUserService.getProfile(authUser.id)
 
+    // If user doesn't exist in database, sync from Supabase
     if (!user) {
-      return NextResponse.json(
-        { error: 'User profile not found' },
-        { status: 404 }
-      )
+      try {
+        user = await serverAuthService.syncUserProfile(
+          authUser.id,
+          authUser.email!,
+          authUser.user_metadata
+        )
+      } catch (syncError) {
+        console.error('Error syncing user profile:', syncError)
+        return NextResponse.json(
+          { error: 'Failed to sync user profile' },
+          { status: 500 }
+        )
+      }
     }
 
     return NextResponse.json({ user })

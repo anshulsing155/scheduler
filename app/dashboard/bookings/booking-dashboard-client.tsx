@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { BookingWithRelations } from '@/services/booking-service'
+import { BookingWithRelations } from '@/services/booking-service.client'
 import BookingDashboard from '@/components/booking/BookingDashboard'
 
 interface BookingDashboardClientProps {

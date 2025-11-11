@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { BookingWithRelations, bookingService } from '@/services/booking-service'
+import { BookingWithRelations, bookingService } from '@/services/booking-service.client'
 import { availabilityService } from '@/services/availability-service'
 import { useToast } from '@/components/ui/use-toast'
 

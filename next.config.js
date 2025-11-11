@@ -22,6 +22,27 @@ const nextConfig = {
     ],
   },
 
+  // Webpack configuration
+  webpack: (config, { isServer }) => {
+    // Fix for Twilio and other Node.js modules in client-side code
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        path: false,
+        os: false,
+      }
+    }
+    return config
+  },
+
   // Compiler optimizations
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
@@ -36,6 +57,7 @@ const nextConfig = {
       '@radix-ui/react-icons',
       'date-fns',
     ],
+    serverComponentsExternalPackages: ['twilio'],
   },
 
   // Production optimizations

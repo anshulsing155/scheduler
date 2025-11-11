@@ -1,14 +1,15 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { requireAuth } from '@/lib/auth/protected-route'
+import { DashboardLayout } from '@/components/dashboard/dashboard-layout'
 import NotificationSettingsClient from './notification-settings-client'
 
 export default async function NotificationSettingsPage() {
-  const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const user = await requireAuth()
 
-  if (error || !user) {
-    redirect('/auth/login')
-  }
-
-  return <NotificationSettingsClient userId={user.id} />
+  return (
+    <DashboardLayout userEmail={user.email || undefined}>
+      <div className="p-6 lg:p-8">
+        <NotificationSettingsClient userId={user.id} />
+      </div>
+    </DashboardLayout>
+  )
 }

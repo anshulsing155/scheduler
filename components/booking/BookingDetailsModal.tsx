@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookingWithRelations } from '@/services/booking-service'
+import { BookingWithRelations } from '@/services/booking-service.client'
 import RescheduleModal from './RescheduleModal'
 import CancelModal from './CancelModal'
 

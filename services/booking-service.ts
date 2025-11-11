@@ -6,6 +6,9 @@ import { videoService, VideoService } from './video-service'
 import { notificationService } from './notification-service'
 import { cacheInvalidation } from '@/lib/cache-invalidation'
 
+// Re-export types for client components
+export type { BookingWithRelations } from './booking-service.types'
+
 /**
  * Validation Schemas
  */

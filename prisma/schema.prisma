@@ -47,6 +47,11 @@ model User {
   timeFormat        String              @default("12h")
   dateFormat        String              @default("MM/DD/YYYY")
   
+  // Onboarding
+  onboardingCompleted Boolean           @default(false)
+  onboardingStep    Int                 @default(0)
+  hasSeenTour       Boolean             @default(false)
+  
   // Two-Factor Authentication
   twoFactorEnabled  Boolean             @default(false)
   twoFactorSecret   String?             // Encrypted TOTP secret

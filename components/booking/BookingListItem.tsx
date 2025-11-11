@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { Calendar, Clock, User, Video, Phone, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { BookingWithRelations } from '@/services/booking-service'
+import { BookingWithRelations } from '@/services/booking-service.client'
 
 interface BookingListItemProps {
   booking: BookingWithRelations

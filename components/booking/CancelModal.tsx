@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { BookingWithRelations, bookingService } from '@/services/booking-service'
+import { BookingWithRelations, bookingService } from '@/services/booking-service.client'
 import { useToast } from '@/components/ui/use-toast'
 
 interface CancelModalProps {

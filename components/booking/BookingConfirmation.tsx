@@ -6,7 +6,7 @@ import { CheckCircle, Calendar, Clock, MapPin, Video, Phone, Mail, User, Globe }
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookingWithRelations } from '@/services/booking-service'
+import { BookingWithRelations } from '@/services/booking-service.client'
 
 interface BookingConfirmationProps {
   booking: BookingWithRelations
